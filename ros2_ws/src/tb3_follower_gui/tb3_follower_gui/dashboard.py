@@ -10,12 +10,29 @@ are marshaled into the Qt main thread via signals.
 from __future__ import annotations
 
 import os
+# opencv-python bundles its own Qt5 plugins that conflict with system PyQt5.
+# Strip the cv2-installed plugin path BEFORE importing anything Qt-related, and
+# point Qt at the system plugins directory.
+os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+os.environ.setdefault(
+    "QT_QPA_PLATFORM_PLUGIN_PATH",
+    "/usr/lib/x86_64-linux-gnu/qt5/plugins/platforms",
+)
+
 import signal
 import subprocess
 import sys
 import time
 from collections import deque
 from datetime import datetime
+
+# Import PyQt5 BEFORE cv2 so the system Qt libs load first.
+from PyQt5.QtCore import Qt, QObject, QThread, pyqtSignal, QTimer
+from PyQt5.QtGui import QImage, QPixmap, QFont, QColor, QPalette
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QLabel, QPushButton, QTextEdit,
+    QGridLayout, QHBoxLayout, QVBoxLayout, QFrame, QSizePolicy, QGroupBox,
+)
 
 import cv2
 import numpy as np
@@ -27,13 +44,6 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 from cv_bridge import CvBridge
 from tb3_follower_msgs.msg import PersonDetection
-
-from PyQt5.QtCore import Qt, QObject, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QImage, QPixmap, QFont, QColor, QPalette
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QPushButton, QTextEdit,
-    QGridLayout, QHBoxLayout, QVBoxLayout, QFrame, QSizePolicy, QGroupBox,
-)
 
 
 DEMO_SCRIPT = "/mnt/host_project/scripts/05-run-demo.sh"
