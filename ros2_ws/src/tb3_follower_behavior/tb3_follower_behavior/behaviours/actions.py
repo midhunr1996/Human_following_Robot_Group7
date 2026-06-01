@@ -82,16 +82,17 @@ class HoldPosition(py_trees.behaviour.Behaviour):
     def update(self) -> py_trees.common.Status:
         try:
             det = self.bb.get(KEY_DETECTION)
-        except KeyError:
-            self.twist_pub.stop()
-            return py_trees.common.Status.FAILURE
-        if det is None or not getattr(det, "detected", False):
+            if det is None or not getattr(det, "detected", False):
+                self.twist_pub.stop()
+                return py_trees.common.Status.FAILURE
+            bbox_cx = float(det.bbox_cx)
+        except (KeyError, TypeError, AttributeError):
             self.twist_pub.stop()
             return py_trees.common.Status.FAILURE
         # Reuse approach controller with distance=target so linear is 0.
         _, w = compute_approach_twist(
             distance=self.params.target_distance,
-            bbox_cx=float(det.bbox_cx),
+            bbox_cx=bbox_cx,
             params=self.params,
         )
         self.twist_pub.send(0.0, w)
