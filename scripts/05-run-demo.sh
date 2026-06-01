@@ -20,7 +20,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 fi
 
 # All panes need the env vars sourced
-SETUP='source /opt/ros/humble/setup.bash && source ~/ros2_ws/install/setup.bash && export TURTLEBOT3_MODEL=waffle_pi && export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models'
+SETUP='export DISPLAY=:0 && source /opt/ros/humble/setup.bash && source ~/ros2_ws/install/setup.bash && export TURTLEBOT3_MODEL=waffle_pi && export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models'
 
 tmux new-session  -d -s "$SESSION" -n demo
 tmux send-keys    -t "$SESSION:demo.0" \
