@@ -35,4 +35,13 @@ tmux send-keys    -t "$SESSION:demo.2" \
     "$SETUP && sleep 10 && ros2 launch tb3_follower_bringup behavior.launch.py" C-m
 
 tmux select-pane  -t "$SESSION:demo.0"
-tmux attach       -t "$SESSION"
+
+# Attach only if we have a real TTY (interactive shell). When invoked through
+# VBoxManage guestcontrol or any non-tty caller, attaching would fail — just
+# leave the session running detached and print the attach hint.
+if [[ -t 0 && -t 1 ]]; then
+    tmux attach -t "$SESSION"
+else
+    echo "tmux session '$SESSION' running detached."
+    echo "Attach from inside the VM with: tmux attach -t $SESSION"
+fi
