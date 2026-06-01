@@ -23,8 +23,11 @@ else
 fi
 
 # ----- Source ROS env -----
+# /opt/ros/humble/setup.bash references unset vars; temporarily relax nounset.
+set +u
 # shellcheck source=/dev/null
 source /opt/ros/humble/setup.bash
+set -u
 
 cd "$LOCAL_WS"
 
