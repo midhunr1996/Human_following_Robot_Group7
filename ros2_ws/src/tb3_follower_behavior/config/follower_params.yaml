@@ -1,0 +1,14 @@
+follower_bt_node:
+  ros__parameters:
+    target_distance: 1.0
+    close_threshold: 0.8
+    far_threshold: 1.2
+    max_linear_speed: 0.22
+    max_angular_speed: 1.0
+    k_linear: 0.4
+    k_angular: 1.5
+    person_lost_timeout: 1.0
+    search_yaw_rate: 0.3
+    tick_rate_hz: 10.0
+    detection_topic: "/person/detection"
+    cmd_vel_topic: "/cmd_vel"
