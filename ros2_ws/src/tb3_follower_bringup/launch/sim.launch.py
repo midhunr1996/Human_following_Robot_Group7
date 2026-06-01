@@ -27,6 +27,15 @@ def generate_launch_description():
         ),
     )
 
+    # robot_state_publisher publishes the TB3 URDF on /robot_description so the
+    # spawn_entity service can pull it. Without this, the spawn is a no-op.
+    robot_state_publisher = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(tb3_gazebo_share, "launch", "robot_state_publisher.launch.py")
+        ),
+        launch_arguments={"use_sim_time": "true"}.items(),
+    )
+
     spawn_tb3 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(tb3_gazebo_share, "launch", "spawn_turtlebot3.launch.py")
@@ -42,5 +51,6 @@ def generate_launch_description():
         DeclareLaunchArgument("y_pose", default_value="0.0"),
         gzserver,
         gzclient,
+        robot_state_publisher,
         spawn_tb3,
     ])
