@@ -1,0 +1,12 @@
+person_detector_node:
+  ros__parameters:
+    model_path: "~/models/yolov8n.pt"
+    conf_threshold: 0.5
+    imgsz: 320
+    max_rate_hz: 10.0
+    person_height_m: 1.7
+    camera_hfov_rad: 1.085   # Waffle Pi default Raspberry Pi cam
+    image_topic: "/camera/image_raw"
+    camera_info_topic: "/camera/camera_info"
+    scan_topic: "/scan"
+    detection_topic: "/person/detection"
