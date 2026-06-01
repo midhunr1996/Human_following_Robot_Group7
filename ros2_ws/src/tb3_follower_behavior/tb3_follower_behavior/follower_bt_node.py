@@ -90,7 +90,7 @@ class FollowerBTNode(Node):
         self.get_logger().info(
             f"follower_bt_node ready. Ticking at {1.0/tick_period:.1f} Hz."
         )
-        py_trees.display.ascii_tree(self.root)  # print to stdout once for sanity
+        print(py_trees.display.ascii_tree(self.root))
 
     def _on_detection(self, msg: PersonDetection) -> None:
         self.bb.set(KEY_DETECTION, msg)
