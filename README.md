@@ -16,9 +16,11 @@ A ROS 2 Humble case study: a simulated TurtleBot3 Waffle Pi follows a walking hu
    bash /mnt/host_project/scripts/05-run-demo.sh
    ```
 
-## Architecture
+## How it works
 
-See [docs/architecture.md](docs/architecture.md) and [docs/superpowers/specs/2026-06-01-tb3-yolo-bt-follower-design.md](docs/superpowers/specs/2026-06-01-tb3-yolo-bt-follower-design.md).
+**[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)** — plain-English walkthrough of every part (no prior robotics knowledge needed).
+
+For the technical version, see [docs/architecture.md](docs/architecture.md) and the [design spec](docs/superpowers/specs/2026-06-01-tb3-yolo-bt-follower-design.md).
 
 ## Layout
 
