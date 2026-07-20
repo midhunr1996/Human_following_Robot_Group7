@@ -188,10 +188,9 @@ Covers distance/fusion, nearest-person selection, the proportional controller, o
 
 ## 📚 Documentation
 
-- **[Visual Guide (PDF)](TurtleBot3_Human_Follower_Visual_Guide.pdf)** — plain-English, no code, how it works (best for understanding).
-- **[Scripts Guide (PDF)](TurtleBot3_Follower_Scripts_Guide.pdf)** — the scripts and exactly how to run it.
-- **[Technical Tutorial (PDF)](TurtleBot3_Human_Follower_Tutorial.pdf)** — the full detail *with* code.
-- Setup walkthroughs in **[docs/setup/](docs/setup/)** and a plain-English explainer in **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)**.
+- Plain-English explainer (no prior robotics needed): **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)**
+- Setup & run walkthroughs: **[docs/setup/](docs/setup/)**
+- Architecture notes: **[docs/architecture.md](docs/architecture.md)**
 
 ---
 
