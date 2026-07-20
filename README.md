@@ -209,3 +209,7 @@ Covers distance/fusion, nearest-person selection, the proportional controller, o
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+<sub>TurtleBot3 Human-Following Robot · ROS 2 Humble · Group 7</sub>
