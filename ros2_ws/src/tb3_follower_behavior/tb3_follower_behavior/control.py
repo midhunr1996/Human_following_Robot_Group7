@@ -18,6 +18,17 @@ class ControlParams:
     k_angular: float
 
 
+@dataclass(frozen=True)
+class ObstacleParams:
+    """LiDAR reactive obstacle-avoidance config (used by the AVOID branch)."""
+    enabled: bool
+    stop_distance: float       # m — a non-person obstacle nearer than this ahead => avoid
+    front_half_rad: float      # half-angle of the frontal danger cone
+    person_margin_rad: float   # ignore beams within this of the person's bearing
+    avoid_yaw_rate: float      # rad/s to spin toward the clearer side while avoiding
+    camera_hfov_rad: float     # camera HFOV, to convert bbox_cx -> person bearing
+
+
 def clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
 

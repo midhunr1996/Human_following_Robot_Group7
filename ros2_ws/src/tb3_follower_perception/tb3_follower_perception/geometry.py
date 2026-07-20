@@ -49,3 +49,22 @@ def fuse_distance(*, visual_d: float, lidar_d: float, lidar_range_max: float) ->
     if lidar_d <= 0 or lidar_d >= lidar_range_max:
         return visual_d
     return lidar_d
+
+
+def nearest_index(distances: list[float]) -> int:
+    """Return the index of the smallest valid (finite, positive) distance.
+
+    Used to pick which detected person to follow when several are in frame.
+    Invalid entries (NaN, inf, <= 0) are skipped; if none are valid, index 0
+    is returned so the caller still has a deterministic target.
+    """
+    if not distances:
+        raise ValueError("distances must be non-empty")
+    best_i = -1
+    best_d = float("inf")
+    for i, d in enumerate(distances):
+        if math.isnan(d) or math.isinf(d) or d <= 0:
+            continue
+        if d < best_d:
+            best_i, best_d = i, d
+    return best_i if best_i >= 0 else 0

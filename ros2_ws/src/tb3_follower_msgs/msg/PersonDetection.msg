@@ -1,4 +1,5 @@
-# Single highest-confidence person detection (single-target follow).
+# Nearest detected person (single-target follow: of all people in frame,
+# the one with the smallest fused distance is published).
 # All bbox coords are normalized [0,1] relative to image dimensions.
 bool detected
 float32 bbox_cx

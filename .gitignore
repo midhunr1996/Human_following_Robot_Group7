@@ -25,3 +25,12 @@ models/
 
 # Logs
 *.log
+
+# Working scratch, drafts, node deps (not part of the project)
+.claude/
+ppt-build/
+*.pptx
+demo-screen0.webm
+/1.jpeg
+/2.jpeg
+/HOW_IT_WORKS.pdf

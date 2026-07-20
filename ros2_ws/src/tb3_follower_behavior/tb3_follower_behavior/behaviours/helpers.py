@@ -10,6 +10,8 @@ from geometry_msgs.msg import Twist
 KEY_DETECTION = "person/detection"          # tb3_follower_msgs/PersonDetection
 KEY_DISTANCE = "person/distance"            # float
 KEY_LAST_SEEN_TIME = "person/last_seen_t"   # float, monotonic seconds
+KEY_SCAN = "lidar/scan"                     # sensor_msgs/LaserScan (latest)
+KEY_AVOID = "lidar/avoid"                   # obstacle.ObstacleAssessment
 
 
 @dataclass

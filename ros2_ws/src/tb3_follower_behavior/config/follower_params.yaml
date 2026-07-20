@@ -7,8 +7,19 @@ follower_bt_node:
     max_angular_speed: 1.0
     k_linear: 0.4
     k_angular: 1.5
-    person_lost_timeout: 1.0
+    person_lost_timeout: 2.5
     search_yaw_rate: 0.3
     tick_rate_hz: 10.0
     detection_topic: "/person/detection"
     cmd_vel_topic: "/cmd_vel"
+    # ----- LiDAR obstacle avoidance -----
+    obstacle_avoidance_enabled: true
+    obstacle_stop_distance: 0.4       # m — non-person obstacle nearer than this ahead => avoid
+    obstacle_front_half_rad: 0.35     # ~20 deg half-cone straight ahead
+    obstacle_person_margin_rad: 0.26  # ignore beams within ~15 deg of the person's bearing
+    avoid_yaw_rate: 0.6               # rad/s spin toward the clearer side while avoiding
+    camera_hfov_rad: 1.085            # Waffle Pi cam HFOV (bbox_cx -> person bearing)
+    scan_topic: "/scan"
+    # ----- Orient-to-face + state reporting -----
+    orient_offset_threshold: 0.22     # bbox_cx offset (from 0.5) beyond which to rotate-to-face
+    follower_state_topic: "/follower/state"

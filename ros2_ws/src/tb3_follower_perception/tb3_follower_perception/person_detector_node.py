@@ -2,6 +2,7 @@
 
 Subscribes to /camera/image_raw + /camera/camera_info + /scan.
 Publishes /person/detection (tb3_follower_msgs/PersonDetection) at up to max_rate_hz.
+When several people are in frame, the NEAREST one (by fused distance) is published.
 """
 from __future__ import annotations
 
@@ -9,7 +10,6 @@ import os
 import time
 from pathlib import Path
 
-import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
@@ -23,6 +23,7 @@ from tb3_follower_perception.geometry import (
     visual_distance,
     bbox_cx_to_lidar_index,
     fuse_distance,
+    nearest_index,
 )
 
 
@@ -144,49 +145,59 @@ class PersonDetectorNode(Node):
             self.last_pub_time = now
             return
 
-        # Pick highest-confidence box
+        # Estimate distance for EVERY detected person, then follow the nearest.
         confs = boxes.conf.cpu().numpy()
-        best = int(np.argmax(confs))
-        x1, y1, x2, y2 = boxes.xyxy[best].cpu().numpy().tolist()
-        conf = float(confs[best])
+        xyxy = boxes.xyxy.cpu().numpy()
 
-        bbox_w_px = max(x2 - x1, 1.0)
-        bbox_h_px = max(y2 - y1, 1.0)
-        bbox_cx_px = (x1 + x2) / 2.0
-        bbox_cy_px = (y1 + y2) / 2.0
+        candidates = []
+        for i in range(len(confs)):
+            x1, y1, x2, y2 = xyxy[i].tolist()
+            bbox_w_px = max(x2 - x1, 1.0)
+            bbox_h_px = max(y2 - y1, 1.0)
+            bbox_cx = float(((x1 + x2) / 2.0) / w_px)
+            bbox_cy = float(((y1 + y2) / 2.0) / h_px)
 
-        # Normalize
-        out.detected = True
-        out.bbox_cx = float(bbox_cx_px / w_px)
-        out.bbox_cy = float(bbox_cy_px / h_px)
-        out.bbox_w = float(bbox_w_px / w_px)
-        out.bbox_h = float(bbox_h_px / h_px)
-        out.confidence = conf
-
-        # Distance fusion
-        d_visual = visual_distance(
-            person_height_m=self.person_height_m,
-            bbox_h_px=bbox_h_px,
-            focal_px=self.focal_px,
-        )
-
-        d_lidar = float("nan")
-        if self.last_scan is not None:
-            idx = bbox_cx_to_lidar_index(
-                bbox_cx=out.bbox_cx,
-                camera_hfov_rad=self.camera_hfov_rad,
-                scan_angle_min=self.last_scan.angle_min,
-                scan_angle_increment=self.last_scan.angle_increment,
-                num_beams=len(self.last_scan.ranges),
+            d_visual = visual_distance(
+                person_height_m=self.person_height_m,
+                bbox_h_px=bbox_h_px,
+                focal_px=self.focal_px,
             )
-            if 0 <= idx < len(self.last_scan.ranges):
-                d_lidar = float(self.last_scan.ranges[idx])
 
-        out.distance = fuse_distance(
-            visual_d=d_visual,
-            lidar_d=d_lidar,
-            lidar_range_max=(self.last_scan.range_max if self.last_scan else 10.0),
-        )
+            d_lidar = float("nan")
+            if self.last_scan is not None:
+                idx = bbox_cx_to_lidar_index(
+                    bbox_cx=bbox_cx,
+                    camera_hfov_rad=self.camera_hfov_rad,
+                    scan_angle_min=self.last_scan.angle_min,
+                    scan_angle_increment=self.last_scan.angle_increment,
+                    num_beams=len(self.last_scan.ranges),
+                )
+                if 0 <= idx < len(self.last_scan.ranges):
+                    d_lidar = float(self.last_scan.ranges[idx])
+
+            distance = fuse_distance(
+                visual_d=d_visual,
+                lidar_d=d_lidar,
+                lidar_range_max=(self.last_scan.range_max if self.last_scan else 10.0),
+            )
+            candidates.append({
+                "bbox_cx": bbox_cx,
+                "bbox_cy": bbox_cy,
+                "bbox_w": float(bbox_w_px / w_px),
+                "bbox_h": float(bbox_h_px / h_px),
+                "confidence": float(confs[i]),
+                "distance": float(distance),
+            })
+
+        best = candidates[nearest_index([c["distance"] for c in candidates])]
+
+        out.detected = True
+        out.bbox_cx = best["bbox_cx"]
+        out.bbox_cy = best["bbox_cy"]
+        out.bbox_w = best["bbox_w"]
+        out.bbox_h = best["bbox_h"]
+        out.confidence = best["confidence"]
+        out.distance = best["distance"]
 
         self.pub.publish(out)
         self.last_pub_time = now

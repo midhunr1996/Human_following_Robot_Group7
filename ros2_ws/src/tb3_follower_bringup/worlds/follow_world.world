@@ -6,45 +6,48 @@
     <include><uri>model://sun</uri></include>
     <include><uri>model://ground_plane</uri></include>
 
-    <!-- Simple enclosure: 4 walls forming a 10x10 m room -->
+    <!-- Simple enclosure: 4 walls forming a 20x20 m room -->
     <model name="wall_north">
       <static>true</static>
-      <pose>0 5 0.5 0 0 0</pose>
+      <pose>0 10 0.5 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><box><size>10 0.2 1</size></box></geometry></collision>
-        <visual name="vis"><geometry><box><size>10 0.2 1</size></box></geometry>
+        <collision name="col"><geometry><box><size>20 0.2 1</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>20 0.2 1</size></box></geometry>
           <material><ambient>0.6 0.6 0.6 1</ambient></material></visual>
       </link>
     </model>
     <model name="wall_south">
       <static>true</static>
-      <pose>0 -5 0.5 0 0 0</pose>
+      <pose>0 -10 0.5 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><box><size>10 0.2 1</size></box></geometry></collision>
-        <visual name="vis"><geometry><box><size>10 0.2 1</size></box></geometry>
+        <collision name="col"><geometry><box><size>20 0.2 1</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>20 0.2 1</size></box></geometry>
           <material><ambient>0.6 0.6 0.6 1</ambient></material></visual>
       </link>
     </model>
     <model name="wall_east">
       <static>true</static>
-      <pose>5 0 0.5 0 0 0</pose>
+      <pose>10 0 0.5 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><box><size>0.2 10 1</size></box></geometry></collision>
-        <visual name="vis"><geometry><box><size>0.2 10 1</size></box></geometry>
+        <collision name="col"><geometry><box><size>0.2 20 1</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>0.2 20 1</size></box></geometry>
           <material><ambient>0.6 0.6 0.6 1</ambient></material></visual>
       </link>
     </model>
     <model name="wall_west">
       <static>true</static>
-      <pose>-5 0 0.5 0 0 0</pose>
+      <pose>-10 0 0.5 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><box><size>0.2 10 1</size></box></geometry></collision>
-        <visual name="vis"><geometry><box><size>0.2 10 1</size></box></geometry>
+        <collision name="col"><geometry><box><size>0.2 20 1</size></box></geometry></collision>
+        <visual name="vis"><geometry><box><size>0.2 20 1</size></box></geometry>
           <material><ambient>0.6 0.6 0.6 1</ambient></material></visual>
       </link>
     </model>
 
-    <!-- Walking human actor (Gazebo built-in animation: walk.dae) -->
+    <!-- Walking human actors (Gazebo built-in animation: walk.dae).
+         All actors pace at ~0.25-0.35 m/s so the TB3 (0.22 m/s max) can keep up. -->
+
+    <!-- Actor 1: small loop near the center, close to the robot spawn -->
     <actor name="walking_person">
       <pose>2 0 0 0 0 0</pose>
       <skin>
@@ -66,6 +69,56 @@
           <waypoint><time>24</time> <pose>-1 -1 0 0 0 0</pose></waypoint>
           <waypoint><time>32</time> <pose>2  -1 0 0 0 1.5708</pose></waypoint>
           <waypoint><time>40</time> <pose>2  0  0 0 0 1.5708</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <!-- Actor 2: tall rectangle loop on the west side of the room -->
+    <actor name="walking_person_2">
+      <pose>-6 -4 0 0 0 1.5708</pose>
+      <skin>
+        <filename>walk.dae</filename>
+        <scale>1.0</scale>
+      </skin>
+      <animation name="walking">
+        <filename>walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <loop>true</loop>
+        <delay_start>0.0</delay_start>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="walking">
+          <waypoint><time>0</time>  <pose>-6 -4 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>24</time> <pose>-6  4 0 0 0 0</pose></waypoint>
+          <waypoint><time>33</time> <pose>-3  4 0 0 0 -1.5708</pose></waypoint>
+          <waypoint><time>57</time> <pose>-3 -4 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>66</time> <pose>-6 -4 0 0 0 1.5708</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <!-- Actor 3: tall rectangle loop on the east side of the room -->
+    <actor name="walking_person_3">
+      <pose>4 -5 0 0 0 0</pose>
+      <skin>
+        <filename>walk.dae</filename>
+        <scale>1.0</scale>
+      </skin>
+      <animation name="walking">
+        <filename>walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <loop>true</loop>
+        <delay_start>0.0</delay_start>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="walking">
+          <waypoint><time>0</time>  <pose>4 -5 0 0 0 0</pose></waypoint>
+          <waypoint><time>9</time>  <pose>7 -5 0 0 0 1.5708</pose></waypoint>
+          <waypoint><time>39</time> <pose>7  5 0 0 0 3.1416</pose></waypoint>
+          <waypoint><time>48</time> <pose>4  5 0 0 0 -1.5708</pose></waypoint>
+          <waypoint><time>78</time> <pose>4 -5 0 0 0 0</pose></waypoint>
         </trajectory>
       </script>
     </actor>

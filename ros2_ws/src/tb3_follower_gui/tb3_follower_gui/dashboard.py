@@ -42,12 +42,22 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
+from std_msgs.msg import String
 from cv_bridge import CvBridge
 from tb3_follower_msgs.msg import PersonDetection
 
 
-DEMO_SCRIPT = "/mnt/host_project/scripts/05-run-demo.sh"
-TMUX_SESSION = "tb3-follower"
+# Mode selects what the START button launches:
+#   "real" -> physical TurtleBot3 via 06-follow-real.sh (RealSense + YOLO + BT)
+#   "sim"  -> Gazebo demo via 05-run-demo.sh
+# Default is the REAL robot. Override with FOLLOWER_MODE=sim.
+FOLLOWER_MODE = os.environ.get("FOLLOWER_MODE", "real")
+if FOLLOWER_MODE == "sim":
+    DEMO_SCRIPT = "/mnt/host_project/scripts/05-run-demo.sh"
+    TMUX_SESSION = "tb3-follower"
+else:
+    DEMO_SCRIPT = "/mnt/host_project/scripts/06-follow-real.sh"
+    TMUX_SESSION = "tb3-follow"
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +68,7 @@ class Signals(QObject):
     detection = pyqtSignal(object)
     cmd_vel = pyqtSignal(object)
     image = pyqtSignal(object)
+    state = pyqtSignal(str)
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +93,9 @@ class GuiRosNode(Node):
         self.create_subscription(
             Image, "/camera/image_raw", self._on_image, sensor_qos
         )
+        self.create_subscription(
+            String, "/follower/state", self._on_state, 10
+        )
 
     def _on_detection(self, msg: PersonDetection):
         self.signals.detection.emit(msg)
@@ -91,6 +105,9 @@ class GuiRosNode(Node):
 
     def _on_image(self, msg: Image):
         self.signals.image.emit(msg)
+
+    def _on_state(self, msg: String):
+        self.signals.state.emit(msg.data)
 
 
 class RosThread(QThread):
@@ -173,6 +190,8 @@ class StateBadge(QLabel):
             "approach":  ("#2f7d4f", "#eafff1"),
             "hold":      ("#2360b0", "#eaf2ff"),
             "stop":      ("#b8413d", "#fff0ee"),
+            "avoid":     ("#c2410c", "#fff3ec"),
+            "orient":    ("#7c5cc4", "#f3ecff"),
         }
         bg, fg = palette.get(state, palette["stopped"])
         label = {
@@ -181,6 +200,8 @@ class StateBadge(QLabel):
             "approach":  "● APPROACHING",
             "hold":      "● HOLDING",
             "stop":      "● TOO CLOSE — STOP",
+            "avoid":     "● AVOIDING OBSTACLE",
+            "orient":    "● ORIENTING",
         }.get(state, "● STOPPED")
         self.setText(label)
         self.setStyleSheet(
@@ -204,6 +225,8 @@ class Dashboard(QMainWindow):
         self.last_detection_t: float = 0.0
         self.last_cmd: Twist | None = None
         self.last_image_arr: np.ndarray | None = None
+        self.last_state: str | None = None
+        self.last_state_t: float = 0.0
 
         self.det_timestamps = deque(maxlen=40)
         self.cmd_timestamps = deque(maxlen=40)
@@ -218,6 +241,7 @@ class Dashboard(QMainWindow):
         self.signals.detection.connect(self._on_detection)
         self.signals.cmd_vel.connect(self._on_cmd_vel)
         self.signals.image.connect(self._on_image)
+        self.signals.state.connect(self._on_state)
 
         # ROS thread
         self.ros_thread = RosThread(self.signals)
@@ -311,10 +335,10 @@ class Dashboard(QMainWindow):
         # Controls
         ctrl = QHBoxLayout()
         ctrl.setSpacing(10)
-        self.btn_start = QPushButton("▶  START DEMO")
-        self.btn_stop = QPushButton("■  STOP DEMO")
+        self.btn_start = QPushButton("▶  START FOLLOW (REAL)")
+        self.btn_stop = QPushButton("■  STOP FOLLOW")
         self.btn_restart = QPushButton("⟳  RESTART")
-        self.btn_close_gz = QPushButton("✕  CLOSE GAZEBO GUI")
+        self.btn_close_gz = QPushButton("✕  STOP CAMERA (Pi)")
         for b, color in [
             (self.btn_start, "#2f7d4f"),
             (self.btn_stop, "#b8413d"),
@@ -394,6 +418,13 @@ class Dashboard(QMainWindow):
         self.card_lin.setText(f"{msg.linear.x:+.3f}")
         self.card_ang.setText(f"{msg.angular.z:+.3f}")
 
+    def _on_state(self, state: str):
+        # Live state straight from the behaviour tree (searching/approach/hold/
+        # stop/avoid/orient) — authoritative, drives the badge directly.
+        self.last_state = state
+        self.last_state_t = time.monotonic()
+        self.badge.set_state(state)
+
     def _on_image(self, msg: Image):
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
@@ -438,18 +469,22 @@ class Dashboard(QMainWindow):
             and age < 1.0
         )
 
-        if not self._demo_running():
-            self.badge.set_state("stopped")
-        elif det_alive:
-            d = self.last_detection.distance
-            if d < 0.8:
-                self.badge.set_state("stop")
-            elif d > 1.2:
-                self.badge.set_state("approach")
+        # Prefer the live state published by the behaviour tree (/follower/state);
+        # only fall back to a distance-derived badge if no state arrived recently.
+        state_fresh = bool(self.last_state_t) and (now - self.last_state_t) < 1.5
+        if not state_fresh:
+            if not self._demo_running():
+                self.badge.set_state("stopped")
+            elif det_alive:
+                d = self.last_detection.distance
+                if d < 0.8:
+                    self.badge.set_state("stop")
+                elif d > 1.2:
+                    self.badge.set_state("approach")
+                else:
+                    self.badge.set_state("hold")
             else:
-                self.badge.set_state("hold")
-        else:
-            self.badge.set_state("searching")
+                self.badge.set_state("searching")
 
         # Rates over last 4-second window
         self.card_drate.setText(f"{self._rate(self.det_timestamps, now):.1f}")
@@ -480,11 +515,13 @@ class Dashboard(QMainWindow):
 
     def _start_demo(self):
         if self._demo_running():
-            self._log("Demo already running.")
+            self._log("Follower already running.")
             return
-        self._log("Starting demo (tmux: gazebo + perception + BT) …")
+        where = "REAL robot" if FOLLOWER_MODE != "sim" else "Gazebo sim"
+        self._log(f"Starting follower on the {where} (camera + YOLO + behaviour tree) …")
         env = os.environ.copy()
         env.setdefault("DISPLAY", ":0")
+        env.setdefault("PI_PASS", "turtlebot")   # real-robot Pi SSH password
         try:
             subprocess.Popen(
                 ["bash", DEMO_SCRIPT],
@@ -492,20 +529,20 @@ class Dashboard(QMainWindow):
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
-            self._log(f"Spawned {DEMO_SCRIPT}. Allow ~15 s for Gazebo + spawn.")
+            self._log(f"Spawned {DEMO_SCRIPT}. Allow ~20 s for the camera + YOLO to come up.")
         except FileNotFoundError:
             self._log(f"ERROR: {DEMO_SCRIPT} not found. Is /mnt/host_project mounted?")
 
     def _stop_demo(self):
-        self._log("Stopping demo …")
+        self._log("Stopping follower (VM side) …")
         for cmd in (
             ["tmux", "kill-session", "-t", TMUX_SESSION],
-            ["pkill", "-9", "-f", "gzserver"],
-            ["pkill", "-9", "-f", "gzclient"],
-            ["pkill", "-9", "-f", "ros2 launch tb3_follower"],
             ["pkill", "-9", "-f", "person_detector_node"],
             ["pkill", "-9", "-f", "follower_bt_node"],
-            ["pkill", "-9", "-f", "robot_state_publisher"],
+            ["pkill", "-9", "-f", "image_transport"],
+            ["pkill", "-9", "-f", "republish"],
+            ["pkill", "-9", "-f", "gzserver"],
+            ["pkill", "-9", "-f", "gzclient"],
         ):
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self._log("Stopped.")
@@ -518,9 +555,23 @@ class Dashboard(QMainWindow):
         QTimer.singleShot(1500, self._start_demo)
 
     def _close_gz_gui(self):
-        subprocess.run(["pkill", "-9", "-f", "gzclient"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        self._log("Closed gzclient (Gazebo GUI). Simulation continues headless.")
+        if FOLLOWER_MODE == "sim":
+            subprocess.run(["pkill", "-9", "-f", "gzclient"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self._log("Closed gzclient (Gazebo GUI). Simulation continues headless.")
+            return
+        # Real robot: stop the RealSense node on the Pi (frees the camera).
+        pi = f"{os.environ.get('PI_USER', 'ubuntu')}@{os.environ.get('PI_HOST', '192.168.137.105')}"
+        try:
+            subprocess.run(
+                ["sshpass", "-p", os.environ.get("PI_PASS", "turtlebot"),
+                 "ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=6",
+                 pi, "pkill -f realsense2_camera_node"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12,
+            )
+            self._log(f"Sent stop-camera to the Pi ({pi}).")
+        except Exception as e:
+            self._log(f"stop-camera failed: {e}")
 
     # ---------------- log ----------------
 

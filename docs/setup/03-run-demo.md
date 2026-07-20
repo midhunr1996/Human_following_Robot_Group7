@@ -21,7 +21,7 @@ Gazebo will open in a separate window. **First boot of Gazebo is slow** (downloa
 
 ## What to watch
 
-**Pane 0 (Gazebo):** A 10×10 m room with the TurtleBot3 at the origin and a walking person actor. The actor walks a loop around the room.
+**Pane 0 (Gazebo):** A 20×20 m room with the TurtleBot3 at the origin and **three** walking person actors: one looping near the center, one pacing a rectangle on the west side, one on the east side. The robot follows whichever person is **nearest** (by fused LiDAR/visual distance).
 
 **Pane 1 (perception):** Logs `Focal length captured: fx=...` once at startup. Otherwise quiet unless YOLO inference is too slow (`YOLO inference slow (XXX ms)`).
 
@@ -36,6 +36,7 @@ Tick each:
 - [ ] Robot stops at ~1m from the actor.
 - [ ] When the actor walks out of frame, robot rotates within ~1s to search.
 - [ ] Robot re-engages when the actor comes back into view.
+- [ ] With two actors in frame at once, robot heads for the **nearer** one (watch `/person/detection` distance drop when the closer actor crosses in front).
 
 ## Tmux quick reference
 

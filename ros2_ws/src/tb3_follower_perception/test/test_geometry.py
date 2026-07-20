@@ -6,6 +6,7 @@ from tb3_follower_perception.geometry import (
     visual_distance,
     bbox_cx_to_lidar_index,
     fuse_distance,
+    nearest_index,
 )
 
 
@@ -83,3 +84,28 @@ class TestFuseDistance:
     def test_lidar_inf_falls_back_to_visual(self):
         d = fuse_distance(visual_d=5.0, lidar_d=float("inf"), lidar_range_max=10.0)
         assert d == 5.0
+
+
+class TestNearestIndex:
+    def test_picks_smallest(self):
+        assert nearest_index([5.0, 2.0, 8.0]) == 1
+
+    def test_single_entry(self):
+        assert nearest_index([3.3]) == 0
+
+    def test_skips_nan_and_inf(self):
+        assert nearest_index([float("nan"), float("inf"), 4.0, 2.5]) == 3
+
+    def test_skips_nonpositive(self):
+        # -1.0 is the "unknown distance" sentinel; must never win.
+        assert nearest_index([-1.0, 0.0, 6.0]) == 2
+
+    def test_all_invalid_falls_back_to_first(self):
+        assert nearest_index([float("nan"), -1.0]) == 0
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError):
+            nearest_index([])
+
+    def test_tie_keeps_first(self):
+        assert nearest_index([2.0, 2.0, 5.0]) == 0

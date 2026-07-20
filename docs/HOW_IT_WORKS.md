@@ -197,9 +197,9 @@ The pattern is *publish/subscribe with no central coordinator*. Add a third node
 
 **Gazebo** is a physics-accurate 3D simulator. We give it a description of a world and the robot, and it does the rest (gravity, collisions, friction, sensor data, the works).
 
-Our world (`tb3_follower_bringup/worlds/follow_world.world`) is a 10×10 m empty room with four walls and a **walking human actor**. Gazebo ships a built-in `walk.dae` animation — a person figure that walks a loop you define. We told ours to walk a square pattern in front of where the robot spawns, so when the robot's camera turns on, the actor is right there to be detected.
+Our world (`tb3_follower_bringup/worlds/follow_world.world`) is a 20×20 m empty room with four walls and **three walking human actors**. Gazebo ships a built-in `walk.dae` animation — a person figure that walks a loop you define. One actor walks a square pattern in front of where the robot spawns (so it's detected right away), and two more pace rectangles on the west and east sides of the room.
 
-The actor doesn't publish anything to ROS — it's a pure visual + physics entity. YOLO sees it through the robot's camera the same way it would see a real person.
+The actors don't publish anything to ROS — they're pure visual + physics entities. YOLO sees them through the robot's camera the same way it would see real people. When several people are in frame at once, the detector estimates a distance for each and publishes only the **nearest** one — that's who the robot follows.
 
 ---
 

@@ -3,19 +3,23 @@ from __future__ import annotations
 
 import py_trees
 
-from tb3_follower_behavior.control import ControlParams
+from tb3_follower_behavior.control import ControlParams, ObstacleParams
 from tb3_follower_behavior.behaviours.helpers import TwistPublisher
 from tb3_follower_behavior.behaviours.guards import (
     IsPersonDetected,
     ReadDistance,
     DistanceWithin,
     PersonLostTimer,
+    IsObstacleAhead,
+    IsOffCenter,
 )
 from tb3_follower_behavior.behaviours.actions import (
     Stop,
     Approach,
     HoldPosition,
     RotateInPlace,
+    AvoidObstacle,
+    TurnToFace,
     Idle,
 )
 
@@ -24,17 +28,23 @@ def build_tree(
     *,
     twist_pub: TwistPublisher,
     params: ControlParams,
+    obstacle_params: ObstacleParams,
     person_lost_timeout: float,
     search_yaw_rate: float,
+    orient_offset_threshold: float = 0.22,
 ) -> py_trees.behaviour.Behaviour:
     """Returns the root behaviour of the follower tree.
 
     Root (Selector)
+    ├── AVOID (Sequence)          # highest priority — collision safety
+    │   ├── IsObstacleAhead       # non-person obstacle within stop_distance
+    │   └── AvoidObstacle         # stop + spin toward clearer side
     ├── FOLLOW (Sequence)
     │   ├── IsPersonDetected
     │   ├── ReadDistance
     │   └── Selector
     │       ├── Sequence(IsTooClose, Stop)
+    │       ├── Sequence(IsOffCenter, TurnToFace)   # rotate in place to face
     │       ├── Sequence(IsTooFar, Approach)
     │       └── Sequence(InRange, HoldPosition)
     ├── SEARCH (Sequence)
@@ -50,6 +60,10 @@ def build_tree(
         py_trees.composites.Sequence(name="TooClose->Stop", memory=False, children=[
             DistanceWithin(name="IsTooClose", lo=-float("inf"), hi=params.close_threshold),
             Stop(twist_pub=twist_pub),
+        ]),
+        py_trees.composites.Sequence(name="OffCenter->TurnToFace", memory=False, children=[
+            IsOffCenter(threshold=orient_offset_threshold),
+            TurnToFace(twist_pub=twist_pub, params=params),
         ]),
         py_trees.composites.Sequence(name="TooFar->Approach", memory=False, children=[
             DistanceWithin(name="IsTooFar", lo=params.far_threshold, hi=float("inf")),
@@ -73,8 +87,15 @@ def build_tree(
         RotateInPlace(twist_pub=twist_pub, yaw_rate=search_yaw_rate),
     ])
 
+    # ----- AVOID branch (highest priority: collision safety) -----
+    avoid = py_trees.composites.Sequence(name="AVOID", memory=False, children=[
+        IsObstacleAhead(params=obstacle_params),
+        AvoidObstacle(twist_pub=twist_pub, params=obstacle_params),
+    ])
+
     # ----- Root selector -----
     root = py_trees.composites.Selector(name="Root", memory=False, children=[
+        avoid,
         follow,
         search,
         Idle(twist_pub=twist_pub),

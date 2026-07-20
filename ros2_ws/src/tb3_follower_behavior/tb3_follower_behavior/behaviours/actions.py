@@ -6,6 +6,7 @@ import py_trees
 from tb3_follower_behavior.behaviours.helpers import (
     KEY_DETECTION,
     KEY_DISTANCE,
+    KEY_AVOID,
     TwistPublisher,
 )
 from tb3_follower_behavior.control import (
@@ -90,6 +91,69 @@ class HoldPosition(py_trees.behaviour.Behaviour):
             self.twist_pub.stop()
             return py_trees.common.Status.FAILURE
         # Reuse approach controller with distance=target so linear is 0.
+        _, w = compute_approach_twist(
+            distance=self.params.target_distance,
+            bbox_cx=bbox_cx,
+            params=self.params,
+        )
+        self.twist_pub.send(0.0, w)
+        return py_trees.common.Status.RUNNING
+
+
+class AvoidObstacle(py_trees.behaviour.Behaviour):
+    """Reactively avoid a close obstacle: stop forward motion and spin toward the
+    clearer side (from the KEY_AVOID assessment) until the path ahead is clear.
+
+    Returns RUNNING while avoiding. Sits at the top of the root selector, so it
+    pre-empts FOLLOW/SEARCH — safety first.
+    """
+
+    def __init__(self, twist_pub: TwistPublisher, params, name: str = "AvoidObstacle"):
+        super().__init__(name)
+        self.twist_pub = twist_pub
+        self.params = params
+        self.bb = self.attach_blackboard_client(name=name)
+        self.bb.register_key(KEY_AVOID, access=py_trees.common.Access.READ)
+
+    def update(self) -> py_trees.common.Status:
+        try:
+            a = self.bb.get(KEY_AVOID)
+        except KeyError:
+            a = None
+        if a is None:
+            self.twist_pub.stop()
+            return py_trees.common.Status.FAILURE
+        self.twist_pub.send(0.0, a.turn_sign * self.params.avoid_yaw_rate)
+        return py_trees.common.Status.RUNNING
+
+
+class TurnToFace(py_trees.behaviour.Behaviour):
+    """Rotate in place to center a detected but off-to-the-side person.
+
+    Linear velocity is zero; angular tracks the bbox horizontal offset (same
+    proportional law as the approach/hold controller). Returns RUNNING while
+    turning. Sits above Approach in the FOLLOW selector so the robot faces the
+    person before driving toward them.
+    """
+
+    def __init__(self, twist_pub: TwistPublisher, params: ControlParams, name: str = "TurnToFace"):
+        super().__init__(name)
+        self.twist_pub = twist_pub
+        self.params = params
+        self.bb = self.attach_blackboard_client(name=name)
+        self.bb.register_key(KEY_DETECTION, access=py_trees.common.Access.READ)
+
+    def update(self) -> py_trees.common.Status:
+        try:
+            det = self.bb.get(KEY_DETECTION)
+            if det is None or not getattr(det, "detected", False):
+                self.twist_pub.stop()
+                return py_trees.common.Status.FAILURE
+            bbox_cx = float(det.bbox_cx)
+        except (KeyError, TypeError, AttributeError):
+            self.twist_pub.stop()
+            return py_trees.common.Status.FAILURE
+        # distance=target => zero linear; angular turns toward the person.
         _, w = compute_approach_twist(
             distance=self.params.target_distance,
             bbox_cx=bbox_cx,
